@@ -15,7 +15,7 @@ type Manager interface {
 	List(ctx context.Context, collection string, value interface{}, limit, offset int) error
 	Upsert(ctx context.Context, collection string, key string, value interface{}) error
 	Delete(ctx context.Context, collection string, key string) error
-	Storage(ctx context.Context, schema string, collections []string) (storage.Store, error)
+	Storage(ctx context.Context, schema string, collections []string, namespace string) (storage.Store, error)
 }
 
 func roundTrip(in, out interface{}) error {
@@ -34,7 +34,7 @@ func roundTrip(in, out interface{}) error {
 	return nil
 }
 
-func toRegoStore(ctx context.Context, schema string, collections []string, query func(context.Context, string) ([]json.RawMessage, error)) (storage.Store, error) {
+func toRegoStore(ctx context.Context, schema string, collections []string, namespace string, query func(context.Context, string, string) ([]json.RawMessage, error)) (storage.Store, error) {
 	var s map[string]interface{}
 	dec := json.NewDecoder(bytes.NewBufferString(schema))
 	dec.UseNumber()
@@ -57,7 +57,7 @@ func toRegoStore(ctx context.Context, schema string, collections []string, query
 		var val []interface{}
 		var b bytes.Buffer
 
-		d, err := query(ctx, c)
+		d, err := query(ctx, c, namespace)
 		if err != nil {
 			return nil, err
 		}

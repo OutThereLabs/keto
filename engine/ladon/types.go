@@ -22,4 +22,7 @@ type Input struct {
 
 	// Context is the request's environmental context.
 	Context map[string]interface{} `json:"context"`
+
+	// Namespace is an optional namespace to limit our request to.
+	Namespace string `json:"namespace"`
 }

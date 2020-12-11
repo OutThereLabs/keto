@@ -153,15 +153,26 @@ func (m *SQLManager) Delete(ctx context.Context, collection, key string) error {
 	return nil
 }
 
-func (m *SQLManager) Storage(ctx context.Context, schema string, collections []string) (storage.Store, error) {
-	return toRegoStore(ctx, schema, collections, func(i context.Context, s string) ([]json.RawMessage, error) {
+func (m *SQLManager) Storage(ctx context.Context, schema string, collections []string, namespace string) (storage.Store, error) {
+	return toRegoStore(ctx, schema, collections, namespace, func(i context.Context, s string, namespace string) ([]json.RawMessage, error) {
 		var items []json.RawMessage
-		if err := m.db.SelectContext(
-			ctx,
-			&items,
-			m.db.Rebind("SELECT document FROM rego_data WHERE collection=? ORDER BY id ASC"), s,
-		); err != nil {
-			return nil, errors.WithStack(err)
+
+		if namespace != "" {
+			if err := m.db.SelectContext(
+				ctx,
+				&items,
+				m.db.Rebind("SELECT document FROM rego_data AS OF SYSTEM TIME experimental_follower_read_timestamp() WHERE collection=? AND pkey LIKE ? ORDER BY id ASC"), s, namespace+":%",
+			); err != nil {
+				return nil, errors.WithStack(err)
+			}
+		} else {
+			if err := m.db.SelectContext(
+				ctx,
+				&items,
+				m.db.Rebind("SELECT document FROM rego_data WHERE collection=? ORDER BY id ASC"), s,
+			); err != nil {
+				return nil, errors.WithStack(err)
+			}
 		}
 		return items, nil
 	})

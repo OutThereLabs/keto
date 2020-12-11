@@ -106,6 +106,29 @@ func (e *Engine) Register(r *httprouter.Router) {
 	//       500: genericError
 	r.POST(BasePath+"/allowed", e.engine.Evaluate(e.eval))
 
+	// swagger:route POST /namespaces/{namespace}/engines/acp/ory/{flavor}/allowed engines doOryAccessControlPoliciesAllow
+	//
+	// Check If a Request for an app is Allowed
+	//
+	// Use this endpoint to check if a request is allowed or not. If the request is allowed, a 200 response with
+	// `{"allowed":"true"}` will be sent. If the request is denied, a 403 response with `{"allowed":"false"}` will
+	// be sent instead.
+	//
+	//
+	//     Consumes:
+	//     - application/json
+	//
+	//     Produces:
+	//     - application/json
+	//
+	//     Schemes: http, https
+	//
+	//     Responses:
+	//       200: authorizationResult
+	//       403: authorizationResult
+	//       500: genericError
+	r.POST("/namespaces/:namespace"+BasePath+"/allowed", e.engine.Evaluate(e.eval))
+
 	// swagger:route PUT /engines/acp/ory/{flavor}/policies engines upsertOryAccessControlPolicy
 	//
 	// Upsert an ORY Access Control Policy
@@ -477,14 +500,14 @@ func flavor(ps httprouter.Params) (string, error) {
 	return t, nil
 }
 
+func namespace(ps httprouter.Params) (string, error) {
+	t := ps.ByName("namespace")
+	return t, nil
+}
+
 func (e *Engine) eval(ctx context.Context, r *http.Request, ps httprouter.Params) ([]func(*rego.Rego), error) {
 	f, err := flavor(ps)
-	if err != nil {
-		return nil, err
-	}
-
-	query := fmt.Sprintf("data.ory.%s.allow", f)
-	store, err := e.s.Storage(ctx, schema, []string{policyCollection(f), roleCollection(f)})
+	a, err := namespace(ps)
 	if err != nil {
 		return nil, err
 	}
@@ -494,6 +517,16 @@ func (e *Engine) eval(ctx context.Context, r *http.Request, ps httprouter.Params
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&i); err != nil {
 		return nil, errors.WithStack(err)
+	}
+
+	if a == "" {
+		a = i.Namespace
+	}
+
+	query := fmt.Sprintf("data.ory.%s.allow", f)
+	store, err := e.s.Storage(ctx, schema, []string{policyCollection(f), roleCollection(f)}, a)
+	if err != nil {
+		return nil, err
 	}
 
 	return []func(*rego.Rego){

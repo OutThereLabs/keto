@@ -72,11 +72,11 @@ func (m *MemoryManager) Upsert(_ context.Context, collection, key string, value 
 func (m *MemoryManager) List(ctx context.Context, collection string, value interface{}, limit, offset int) error {
 	c := m.collection(collection)
 	start, end := pagination.Index(limit, offset, len(c))
-	items := m.list(ctx, collection)[start:end]
+	items := m.list(ctx, collection, "")[start:end]
 	return roundTrip(&items, value)
 }
 
-func (m *MemoryManager) list(ctx context.Context, collection string) []json.RawMessage {
+func (m *MemoryManager) list(ctx context.Context, collection string, namespace string) []json.RawMessage {
 	c := m.collection(collection)
 	items := make([]json.RawMessage, len(c))
 
@@ -133,8 +133,8 @@ func (m *MemoryManager) Delete(_ context.Context, collection, key string) error 
 	return nil
 }
 
-func (m *MemoryManager) Storage(ctx context.Context, schema string, collections []string) (storage.Store, error) {
-	return toRegoStore(ctx, schema, collections, func(i context.Context, s string) ([]json.RawMessage, error) {
-		return m.list(i, s), nil
+func (m *MemoryManager) Storage(ctx context.Context, schema string, collections []string, namespace string) (storage.Store, error) {
+	return toRegoStore(ctx, schema, collections, namespace, func(i context.Context, s string, n string) ([]json.RawMessage, error) {
+		return m.list(i, s, n), nil
 	})
 }
